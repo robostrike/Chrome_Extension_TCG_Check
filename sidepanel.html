@@ -9,77 +9,64 @@
 <body>
   <main class="app">
     <header class="header">
-      <div>
-        <div class="eyebrow">MULTI-STORE PRICE SEARCH</div>
-        <h1>TCG Price Checker</h1>
-      </div>
-      <span class="version">V2</span>
+      <div><div class="eyebrow">MULTI-STORE PRICE SEARCH</div><h1>TCG Price Checker</h1></div>
+      <span class="version">V3</span>
     </header>
 
-    <form id="search-form" class="search-panel">
-      <label for="game">Trading card game</label>
-      <select id="game">
-        <option value="any">Auto / Any TCG</option>
-        <option value="gundam">Gundam Card Game</option>
-        <option value="pokemon">Pokémon</option>
-        <option value="onepiece">One Piece Card Game</option>
-        <option value="magic">Magic: The Gathering</option>
-      </select>
+    <nav class="tabs" role="tablist" aria-label="Search mode">
+      <button class="tab active" id="tab-single" role="tab" aria-selected="true" aria-controls="panel-single" data-panel="panel-single">Single</button>
+      <button class="tab" id="tab-multiple" role="tab" aria-selected="false" aria-controls="panel-multiple" data-panel="panel-multiple">Multiple</button>
+      <button class="tab" id="tab-detect" role="tab" aria-selected="false" aria-controls="panel-detect" data-panel="panel-detect">Auto-detect</button>
+    </nav>
 
-      <label for="card-number">Card number or product code</label>
-      <div class="search-row">
-        <input id="card-number" type="text" placeholder="e.g. GD06-066" maxlength="30" autocomplete="off">
-        <button id="search-button" type="submit">Search</button>
+    <section id="panel-single" class="tab-panel" role="tabpanel" aria-labelledby="tab-single">
+      <form id="search-form" class="search-panel">
+        <label for="game">Trading card game</label>
+        <select id="game">
+          <option value="any">Auto / Any TCG</option>
+          <option value="gundam">Gundam Card Game</option>
+          <option value="pokemon">Pokémon</option>
+          <option value="onepiece">One Piece Card Game</option>
+          <option value="magic">Magic: The Gathering</option>
+        </select>
+        <label class="visually-hidden" for="card-number">Card name, number, or product code</label>
+        <div class="search-row">
+          <input id="card-number" type="text" placeholder="Name, number, or code" maxlength="100" autocomplete="off">
+          <button id="search-button" type="submit">Search</button>
+        </div>
+      </form>
+      <section id="status" class="status" aria-live="polite">Enter a card name or number to compare listings.</section>
+      <section id="results" class="results" aria-live="polite"></section>
+    </section>
+
+    <section id="panel-multiple" class="tab-panel" role="tabpanel" aria-labelledby="tab-multiple" hidden>
+      <div class="search-panel">
+        <label for="multi-list">Card references (one per line; optional x quantity)</label>
+        <textarea id="multi-list" placeholder="Charizard ex x2&#10;GD06-066&#10;Pikachu 025/198"></textarea>
+        <div class="multi-options">
+          <label for="default-qty">Default quantity</label>
+          <input id="default-qty" type="number" min="1" value="1">
+          <button id="multi-search-button" type="button">Search all</button>
+        </div>
       </div>
+      <section id="multi-status" class="status" aria-live="polite">Search multiple card names, collector numbers, or product codes.</section>
+      <section id="multi-results" class="results" aria-live="polite"></section>
+    </section>
 
-      <label for="search-qty">Desired quantity</label>
-      <input id="search-qty" type="number" min="1" value="1" step="1">
-    </form>
-
-    <div class="toolbar">
-      <label class="toggle">
-        <input type="checkbox" id="auto-toggle" checked>
-        <span>Auto-compare product pages</span>
-      </label>
-    </div>
-
-    <section class="buy-panel">
-      <label for="buy-list">Buy list (one card per line, optional x quantity)</label>
-      <textarea id="buy-list" placeholder="GD06-066 x2&#10;OP01-013&#10;MSB-070 x3"></textarea>
-      <label for="default-qty">Default quantity for list items</label>
-      <input id="default-qty" type="number" min="1" value="1" step="1">
-      <label for="sort-mode">Sort checklist by</label>
-      <select id="sort-mode">
-        <option value="coverage">Most stock coverage</option>
-        <option value="cheapest">Cheapest total</option>
-      </select>
-      <div class="buy-controls">
-        <button id="buy-list-button" type="button" class="secondary">Check best stores</button>
-        <button id="save-list-button" type="button" class="secondary">Save list</button>
-        <button id="copy-order-button" type="button" class="secondary">Copy store order</button>
+    <section id="panel-detect" class="tab-panel" role="tabpanel" aria-labelledby="tab-detect" hidden>
+      <div class="detect-panel">
+        <h2>Card on this page</h2>
+        <p>Detect a card number from the active supported retailer product page. Nothing is added to or searched on the page itself.</p>
+        <div id="detect-status" class="status" aria-live="polite">Checking the active tab…</div>
+        <div class="detect-actions">
+          <button id="detect-refresh" class="secondary" type="button">Check page again</button>
+          <button id="detect-search" type="button" disabled>Compare this card</button>
+        </div>
       </div>
-      <div id="buy-status" class="status" aria-live="polite"></div>
-      <div id="buy-results" class="buy-store-list"></div>
-      <div id="per-card-results" class="buy-store-list"></div>
     </section>
 
-    <section class="buy-panel history-panel">
-      <div class="section-title">Saved buy list history</div>
-      <div id="history-list" class="history-list"></div>
-    </section>
-
-    <section id="status" class="status" aria-live="polite">
-      Enter a card number to compare retailer listings.
-    </section>
-
-    <section id="results" class="results"></section>
-
-    <footer>
-      <span>Stores: KanZenGames · Untouchables · GTA shops</span>
-      <span>Open each listing to add it to cart manually.</span>
-    </footer>
+    <footer><span>Retailer-listed prices; shipping and tax excluded.</span><span>Product images are retailer-provided thumbnails.</span></footer>
   </main>
-
   <script type="module" src="sidepanel.js"></script>
 </body>
 </html>
