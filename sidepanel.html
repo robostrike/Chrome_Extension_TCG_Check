@@ -10,71 +10,40 @@
   <main class="app">
     <header class="header">
       <div><div class="eyebrow">MULTI-STORE PRICE SEARCH</div><h1>TCG Price Checker</h1></div>
-      <div class="header-actions">
-        <button id="detect-button" class="secondary detect-button" type="button" aria-pressed="false">Auto-detect</button>
-        <span class="version">V3</span>
-      </div>
+      <div class="header-actions"><button id="detect-button" class="secondary detect-button" type="button" aria-pressed="false">Auto-detect</button><span class="version">V3</span></div>
     </header>
-
     <details class="store-settings">
       <summary>Stores <span id="store-count" class="store-count"></span></summary>
-      <p class="hint">Choose which supported stores to include in searches. Adding a new retailer requires extension support.</p>
+      <p class="hint">Green means Shopify search responded. Red means it could not connect or Shopify search is unavailable.</p>
       <div id="store-list" class="store-list"></div>
+      <form id="add-store-form" class="add-store-form">
+        <strong>Add your own Shopify store</strong>
+        <label for="new-store-name">Store name</label><input id="new-store-name" type="text" maxlength="60" placeholder="My card shop" required>
+        <label for="new-store-url">Store URL (HTTPS)</label><input id="new-store-url" type="url" placeholder="https://example.com" required>
+        <button id="add-store-button" type="submit">Add store</button>
+      </form>
       <div id="store-settings-status" class="store-settings-status" aria-live="polite"></div>
     </details>
-
     <nav class="tabs" role="tablist" aria-label="Search mode">
       <button class="tab active" id="tab-single" role="tab" aria-selected="true" aria-controls="panel-single" data-panel="panel-single">Single</button>
       <button class="tab" id="tab-multiple" role="tab" aria-selected="false" aria-controls="panel-multiple" data-panel="panel-multiple">Multiple</button>
     </nav>
-
     <section id="panel-single" class="tab-panel" role="tabpanel" aria-labelledby="tab-single">
       <form id="search-form" class="search-panel">
         <label for="game">Trading card game</label>
-        <select id="game">
-          <option value="any">Auto / Any TCG</option>
-          <option value="gundam">Gundam Card Game</option>
-          <option value="pokemon">Pokémon</option>
-          <option value="onepiece">One Piece Card Game</option>
-          <option value="magic">Magic: The Gathering</option>
-        </select>
+        <select id="game"><option value="any">Auto / Any TCG</option><option value="gundam">Gundam Card Game</option><option value="pokemon">Pokémon</option><option value="onepiece">One Piece Card Game</option><option value="magic">Magic: The Gathering</option></select>
         <label class="visually-hidden" for="card-number">Card name, number, or product code</label>
-        <div class="search-row">
-          <input id="card-number" type="text" placeholder="Name, number, or code" maxlength="100" autocomplete="off">
-          <button id="search-button" type="submit">Search</button>
-        </div>
+        <div class="search-row"><input id="card-number" type="text" placeholder="Name, number, or code" maxlength="100" autocomplete="off"><button id="search-button" type="submit">Search</button></div>
       </form>
       <section id="status" class="status" aria-live="polite">Enter a card name or number to compare listings.</section>
       <section id="results" class="results" aria-live="polite"></section>
     </section>
-
     <section id="panel-multiple" class="tab-panel" role="tabpanel" aria-labelledby="tab-multiple" hidden>
-      <div class="search-panel">
-        <label for="multi-list">Card references (one per line; optional x quantity)</label>
-        <textarea id="multi-list" placeholder="Charizard ex x2&#10;GD06-066&#10;Pikachu 025/198"></textarea>
-        <div class="multi-options">
-          <label for="default-qty">Default quantity</label>
-          <input id="default-qty" type="number" min="1" value="1">
-          <button id="multi-search-button" type="button">Search all</button>
-        </div>
-      </div>
-      <section id="multi-status" class="status" aria-live="polite">Search multiple card names, collector numbers, or product codes.</section>
-      <section id="multi-results" class="results" aria-live="polite"></section>
+      <div class="search-panel"><label for="multi-list">Card references (one per line; optional x quantity)</label><textarea id="multi-list" placeholder="Charizard ex x2&#10;GD06-066&#10;Pikachu 025/198"></textarea><div class="multi-options"><label for="default-qty">Default quantity</label><input id="default-qty" type="number" min="1" value="1"><button id="multi-search-button" type="button">Search all</button></div></div>
+      <section id="multi-status" class="status" aria-live="polite">Search multiple card names, collector numbers, or product codes.</section><section id="multi-results" class="results" aria-live="polite"></section>
     </section>
-
-    <section id="panel-detect" class="tab-panel" role="tabpanel" aria-label="Auto-detect card" hidden>
-      <div class="detect-panel">
-        <h2>Card on this page</h2>
-        <p>Detect a card number from the active supported retailer product page. Nothing is added to or searched on the page itself.</p>
-        <div id="detect-status" class="status" aria-live="polite">Click Auto-detect to check the active tab.</div>
-        <div class="detect-actions">
-          <button id="detect-refresh" class="secondary" type="button">Check page again</button>
-          <button id="detect-search" type="button" disabled>Compare this card</button>
-        </div>
-      </div>
-    </section>
-
-    <footer><span>Retailer-listed prices; shipping and tax excluded.</span><span>Card previews use retailer product images and are not an authoritative card database.</span></footer>
+    <section id="panel-detect" class="tab-panel" role="tabpanel" aria-label="Auto-detect card" hidden><div class="detect-panel"><h2>Card on this page</h2><p id="detect-status" class="status" aria-live="polite">Click Auto-detect to identify a card and search it.</p><button id="detect-refresh" class="secondary" type="button">Detect and search again</button></div></section>
+    <footer><span>Retailer-listed prices; shipping and tax excluded.</span><span>Connection checks test Shopify product-search support only.</span></footer>
   </main>
   <script type="module" src="sidepanel.js"></script>
 </body>
