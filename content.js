@@ -1,5 +1,15 @@
 (() => {
-  const STORE_HOSTS = ["kanzengames.com", "untouchables.ca"];
+  const STORE_HOSTS = [
+    "kanzengames.com",
+    "untouchables.ca",
+    "cardifyhobby.com",
+    "elitecardstoronto.com",
+    "bananagames.ca",
+    "kadoone.ca",
+    "rotostcg.ca",
+    "401games.com",
+    "www.401games.com"
+  ];
   const hostname = location.hostname.replace(/^www\./, "");
   if (!STORE_HOSTS.includes(hostname)) return;
 

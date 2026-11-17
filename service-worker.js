@@ -3,6 +3,14 @@ import { searchShopifyStore } from "./adapters/shopify.js";
 import { normalizeCardNumber } from "./matching.js";
 
 chrome.runtime.onInstalled.addListener(async () => {
+  if (chrome.sidePanel) {
+    try {
+      await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+    } catch (error) {
+      console.warn("Side panel setup failed:", error);
+    }
+  }
+
   const existing = await chrome.storage.local.get(["settings", "recentSearches"]);
   if (!existing.settings) {
     await chrome.storage.local.set({
@@ -11,6 +19,10 @@ chrome.runtime.onInstalled.addListener(async () => {
     });
   }
 });
+
+if (chrome.sidePanel) {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+}
 
 async function searchAllStores(rawCardNumber) {
   const cardNumber = normalizeCardNumber(rawCardNumber);

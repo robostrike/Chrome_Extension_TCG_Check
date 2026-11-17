@@ -3,10 +3,16 @@
   "name": "TCG Price Checker",
   "version": "2.0.0",
   "description": "Compare trading card prices across supported online stores.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "sidePanel"],
   "host_permissions": [
     "https://kanzengames.com/*",
-    "https://untouchables.ca/*"
+    "https://untouchables.ca/*",
+    "https://cardifyhobby.com/*",
+    "https://elitecardstoronto.com/*",
+    "https://bananagames.ca/*",
+    "https://kadoone.ca/*",
+    "https://rotostcg.ca/*",
+    "https://www.401games.com/*"
   ],
   "background": {
     "service_worker": "service-worker.js",
@@ -16,11 +22,20 @@
     "default_title": "TCG Price Checker",
     "default_popup": "popup.html"
   },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "content_scripts": [
     {
       "matches": [
         "https://kanzengames.com/*",
-        "https://untouchables.ca/*"
+        "https://untouchables.ca/*",
+        "https://cardifyhobby.com/*",
+        "https://elitecardstoronto.com/*",
+        "https://bananagames.ca/*",
+        "https://kadoone.ca/*",
+        "https://rotostcg.ca/*",
+        "https://www.401games.com/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
