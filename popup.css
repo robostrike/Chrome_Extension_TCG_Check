@@ -41,6 +41,8 @@ button:disabled { opacity:.55; cursor:wait; }
 .variant-name { display:flex; flex-direction:column; gap:2px; }
 .availability { font-size:10px; color:#64748b; }
 .price { white-space:nowrap; }
+.in-stock-price { color:#16834a; }
+.retailer-link { color:#2459b4; text-decoration:underline; }
 .best-price { background:#edf7f0; border:1px solid #cce8d4; border-radius:8px; padding:9px; display:flex; flex-direction:column; gap:2px; }
 .warning { color:#a16207; }
 .empty { color:#64748b; }
