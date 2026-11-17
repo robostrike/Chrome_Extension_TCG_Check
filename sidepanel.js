@@ -28,27 +28,35 @@ function money(value, currency) {
   try { return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(value); }
   catch { return `${currency} ${Number(value).toFixed(2)}`; }
 }
-function renderResults(container, data) {
+function lowestAvailablePrice(product) {
+  const prices = (product.variants || []).filter(variant => variant.available && Number.isFinite(Number(variant.price))).map(variant => Number(variant.price));
+  return prices.length ? Math.min(...prices) : Infinity;
+}
+function retailerLink(variant) {
+  const link = el("a", "retailer-link", variant.storeName);
+  link.href = variant.productUrl;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  return link;
+}
+function renderProducts(container, products, sortBy) {
   container.replaceChildren();
-  const summary = el("div", "store-summary");
-  (data.stores || []).forEach(store => {
-    const line = el("span", store.ok ? "store-ok" : "store-error",
-      `${store.storeName}: ${store.ok ? `${store.products.length} match(es)` : (store.error || "Unavailable")}`);
-    summary.append(line);
-  });
-  if (summary.childElementCount) container.append(summary);
-  if (!data.products?.length) {
-    container.append(el("p", "empty", "No matching retailer listings. Try a different name, set number, or product code."));
-    return;
-  }
-  const cheapest = (data.variants || []).find(variant => variant.available);
-  if (cheapest) {
-    const best = el("div", "best-price");
-    best.append(el("strong", "", "Lowest in-stock"), el("span", "", `${money(cheapest.price, cheapest.currency)} · ${cheapest.storeName}`));
-    container.append(best);
-  }
-  data.products.forEach(product => {
-    const card = el("article", "product-card");
+  const sorted = [...products];
+  if (sortBy === "rarity") sorted.sort((a, b) => (a.rarity || "Unknown").localeCompare(b.rarity || "Unknown") || a.title.localeCompare(b.title));
+  else if (sortBy === "price-asc") sorted.sort((a, b) => lowestAvailablePrice(a) - lowestAvailablePrice(b));
+  else if (sortBy === "price-desc") sorted.sort((a, b) => lowestAvailablePrice(b) - lowestAvailablePrice(a));
+  let currentRarity = null;
+  sorted.forEach(product => {
+    const rarity = product.rarity || "Unknown rarity";
+    if (sortBy === "rarity" && rarity !== currentRarity) {
+      container.append(el("h3", "rarity-heading", rarity));
+      currentRarity = rarity;
+    }
+    const card = el("a", "product-card");
+    card.href = product.url;
+    card.target = "_blank";
+    card.rel = "noopener noreferrer";
+    card.setAttribute("aria-label", `Open ${product.storeName}: ${product.title} at retailer`);
     const image = document.createElement("img");
     image.className = "product-image";
     image.alt = "";
@@ -59,22 +67,48 @@ function renderResults(container, data) {
     const info = el("div", "product-info");
     const top = el("div", "product-top");
     top.append(el("div", "product-title", `${product.storeName}: ${product.title}`));
-    const link = el("a", "product-link", "Open");
-    link.href = product.url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    top.append(link);
     info.append(top);
+    if (product.rarity) info.append(el("span", "rarity-label", product.rarity));
     if (product.error) info.append(el("p", "hint", product.error));
     else (product.variants || []).slice(0, 3).forEach(variant => {
       const row = el("div", "variant-row");
       row.append(el("span", "availability", `${variant.title || "Default"} · ${variant.available ? "In stock" : "Sold out"}`));
-      row.append(el("strong", "price", money(variant.price, product.currency)));
+      row.append(el("strong", variant.available ? "price in-stock-price" : "price", money(variant.price, product.currency)));
       info.append(row);
     });
     card.append(image, info);
     container.append(card);
   });
+}
+function renderResults(container, data) {
+  container.replaceChildren();
+  if (!data.products?.length) {
+    container.append(el("p", "empty", "No matching retailer listings. Try a different name, set number, or product code."));
+    return;
+  }
+  const cheapest = (data.variants || []).find(variant => variant.available);
+  if (cheapest) {
+    const best = el("div", "best-price");
+    const details = el("span", "");
+    details.append(el("strong", "in-stock-price", money(cheapest.price, cheapest.currency)), document.createTextNode(" · "), retailerLink(cheapest));
+    best.append(el("strong", "", "Lowest in-stock"), details);
+    container.append(best);
+  }
+  const sortRow = el("div", "sort-row");
+  const sortLabel = el("label", "", "Sort/group:");
+  const sortSelect = el("select", "sort-select");
+  sortSelect.setAttribute("aria-label", "Sort and group listings");
+  [["default", "Default"], ["rarity", "Group by rarity"], ["price-asc", "Cheapest first"], ["price-desc", "Most expensive first"]].forEach(([value, label]) => {
+    const option = el("option", "", label);
+    option.value = value;
+    sortSelect.append(option);
+  });
+  sortRow.append(sortLabel, sortSelect);
+  container.append(sortRow);
+  const listings = el("div", "listing-results");
+  container.append(listings);
+  renderProducts(listings, data.products, sortSelect.value);
+  sortSelect.addEventListener("change", () => renderProducts(listings, data.products, sortSelect.value));
 }
 async function searchCard(raw, status, container) {
   const term = String(raw || "").trim();
@@ -155,9 +189,7 @@ async function checkActivePage() {
     detectedCard = normalizeCardNumber(card);
     detectStatus.textContent = `Detected: ${detectedCard}`;
     detectSearch.disabled = false;
-  } catch (error) {
-    detectStatus.textContent = error.message;
-  }
+  } catch (error) { detectStatus.textContent = error.message; }
 }
 $("#detect-refresh").addEventListener("click", checkActivePage);
 detectSearch.addEventListener("click", async () => {
@@ -166,7 +198,6 @@ detectSearch.addEventListener("click", async () => {
   input.value = detectedCard;
   form.requestSubmit();
 });
-
 document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
   document.querySelectorAll(".tab").forEach(item => {
     const selected = item === tab;
@@ -176,6 +207,4 @@ document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", (
   document.querySelectorAll(".tab-panel").forEach(panel => { panel.hidden = panel.id !== tab.dataset.panel; });
   if (tab.dataset.panel === "panel-detect") checkActivePage();
 }));
-chrome.tabs.onActivated?.addListener(() => {
-  if (!$("#panel-detect").hidden) checkActivePage();
-});
+chrome.tabs.onActivated?.addListener(() => { if (!$("#panel-detect").hidden) checkActivePage(); });
