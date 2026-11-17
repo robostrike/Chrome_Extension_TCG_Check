@@ -1,4 +1,5 @@
 import { normalizeCardNumber } from "./matching.js";
+import { STORES } from "./stores.js";
 
 const $ = selector => document.querySelector(selector);
 const form = $("#search-form");
@@ -14,7 +15,12 @@ const multiResults = $("#multi-results");
 const defaultQty = $("#default-qty");
 const detectStatus = $("#detect-status");
 const detectSearch = $("#detect-search");
+const detectButton = $("#detect-button");
+const storeList = $("#store-list");
+const storeCount = $("#store-count");
+const storeSettingsStatus = $("#store-settings-status");
 let detectedCard = "";
+let settings = { enabledStoreIds: STORES.filter(store => store.enabled).map(store => store.id) };
 
 function el(tag, className = "", text = "") {
   const node = document.createElement(tag);
@@ -31,13 +37,6 @@ function money(value, currency) {
 function lowestAvailablePrice(product) {
   const prices = (product.variants || []).filter(variant => variant.available && Number.isFinite(Number(variant.price))).map(variant => Number(variant.price));
   return prices.length ? Math.min(...prices) : Infinity;
-}
-function retailerLink(variant) {
-  const link = el("a", "retailer-link", variant.storeName);
-  link.href = variant.productUrl;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  return link;
 }
 function renderProducts(container, products, sortBy) {
   container.replaceChildren();
@@ -80,18 +79,43 @@ function renderProducts(container, products, sortBy) {
     container.append(card);
   });
 }
+function renderCardOverview(cardNumber, product) {
+  const overview = el("article", "card-overview");
+  const image = document.createElement("img");
+  image.className = "overview-image";
+  image.alt = product.image ? `Product image for ${product.title}` : "";
+  image.loading = "lazy";
+  image.hidden = !product.image;
+  if (product.image) image.src = product.image;
+  image.addEventListener("error", () => { image.hidden = true; });
+  const details = el("div", "overview-details");
+  details.append(el("div", "overview-label", "Closest retailer match"));
+  details.append(el("h2", "overview-title", product.title || cardNumber));
+  details.append(el("p", "overview-meta", `${product.storeName || "Supported store"}${product.rarity ? ` · ${product.rarity}` : ""}`));
+  const availableVariant = (product.variants || []).find(variant => variant.available);
+  if (availableVariant) details.append(el("p", "overview-meta", `In stock from ${money(availableVariant.price, product.currency)}`));
+  details.append(el("p", "overview-note", `Search reference: ${cardNumber}. This is the closest listing returned by a store, not a verified card-database match.`));
+  overview.append(image, details);
+  return overview;
+}
 function renderResults(container, data) {
   container.replaceChildren();
   if (!data.products?.length) {
     container.append(el("p", "empty", "No matching retailer listings. Try a different name, set number, or product code."));
     return;
   }
+  container.append(renderCardOverview(data.cardNumber, data.products[0]));
   const cheapest = (data.variants || []).find(variant => variant.available);
   if (cheapest) {
-    const best = el("div", "best-price");
-    const details = el("span", "");
-    details.append(el("strong", "in-stock-price", money(cheapest.price, cheapest.currency)), document.createTextNode(" · "), retailerLink(cheapest));
-    best.append(el("strong", "", "Lowest in-stock"), details);
+    const best = el("a", "best-price");
+    best.href = cheapest.productUrl;
+    best.target = "_blank";
+    best.rel = "noopener noreferrer";
+    best.setAttribute("aria-label", `Open ${cheapest.storeName} listing with the lowest in-stock price, ${money(cheapest.price, cheapest.currency)}`);
+    best.append(el("strong", "best-price-title", "Lowest in-stock"));
+    const details = el("span", "best-price-details");
+    details.append(el("strong", "in-stock-price", money(cheapest.price, cheapest.currency)), el("span", "best-price-store", `at ${cheapest.storeName} · View listing ↗`));
+    best.append(details);
     container.append(best);
   }
   const sortRow = el("div", "sort-row");
@@ -113,7 +137,8 @@ function renderResults(container, data) {
 async function searchCard(raw, status, container) {
   const term = String(raw || "").trim();
   if (!term) throw new Error("Enter a card name, number, or product code.");
-  status.textContent = `Searching stores for ${term}…`;
+  if (!settings.enabledStoreIds.length) throw new Error("Enable at least one store in the Stores list before searching.");
+  status.textContent = `Searching ${settings.enabledStoreIds.length} enabled store(s) for ${term}…`;
   const response = await chrome.runtime.sendMessage({ type: "SEARCH_CARD", cardNumber: term, game: game.value });
   if (!response?.ok) throw new Error(response?.error || "Search failed.");
   status.textContent = `Results for ${response.data.cardNumber}`;
@@ -165,6 +190,43 @@ multiButton.addEventListener("click", async () => {
     multiButton.textContent = "Search all";
   }
 });
+function renderStoreSettings() {
+  storeList.replaceChildren();
+  const enabled = new Set(settings.enabledStoreIds);
+  STORES.forEach(store => {
+    const label = el("label", "store-option");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = enabled.has(store.id);
+    checkbox.addEventListener("change", async () => {
+      const selected = new Set(settings.enabledStoreIds);
+      if (checkbox.checked) selected.add(store.id);
+      else selected.delete(store.id);
+      settings = { ...settings, enabledStoreIds: [...selected] };
+      updateStoreCount();
+      storeSettingsStatus.textContent = "Saving store selection…";
+      const response = await chrome.runtime.sendMessage({ type: "SAVE_SETTINGS", settings });
+      storeSettingsStatus.textContent = response?.ok ? "Store selection saved." : "Could not save store selection.";
+    });
+    const text = el("span", "store-option-name", store.name);
+    const host = el("span", "store-option-host", new URL(store.origin).hostname);
+    label.append(checkbox, text, host);
+    storeList.append(label);
+  });
+  updateStoreCount();
+}
+function updateStoreCount() {
+  const count = settings.enabledStoreIds.length;
+  storeCount.textContent = `${count} of ${STORES.length} enabled`;
+}
+async function loadSettings() {
+  const response = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" });
+  if (response?.ok) {
+    settings = { ...settings, ...response.settings };
+    if (!Array.isArray(settings.enabledStoreIds)) settings.enabledStoreIds = STORES.filter(store => store.enabled).map(store => store.id);
+  }
+  renderStoreSettings();
+}
 
 async function checkActivePage() {
   detectSearch.disabled = true;
@@ -191,20 +253,28 @@ async function checkActivePage() {
     detectSearch.disabled = false;
   } catch (error) { detectStatus.textContent = error.message; }
 }
+function activatePanel(panelId) {
+  document.querySelectorAll(".tab").forEach(tab => {
+    const selected = tab.dataset.panel === panelId;
+    tab.classList.toggle("active", selected);
+    tab.setAttribute("aria-selected", String(selected));
+  });
+  document.querySelectorAll(".tab-panel").forEach(panel => { panel.hidden = panel.id !== panelId; });
+  const detecting = panelId === "panel-detect";
+  detectButton.setAttribute("aria-pressed", String(detecting));
+  if (detecting) checkActivePage();
+}
 $("#detect-refresh").addEventListener("click", checkActivePage);
+detectButton.addEventListener("click", () => activatePanel("panel-detect"));
 detectSearch.addEventListener("click", async () => {
   if (!detectedCard) return;
-  document.querySelector('[data-panel="panel-single"]').click();
+  activatePanel("panel-single");
   input.value = detectedCard;
   form.requestSubmit();
 });
-document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
-  document.querySelectorAll(".tab").forEach(item => {
-    const selected = item === tab;
-    item.classList.toggle("active", selected);
-    item.setAttribute("aria-selected", String(selected));
-  });
-  document.querySelectorAll(".tab-panel").forEach(panel => { panel.hidden = panel.id !== tab.dataset.panel; });
-  if (tab.dataset.panel === "panel-detect") checkActivePage();
-}));
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => activatePanel(tab.dataset.panel)));
 chrome.tabs.onActivated?.addListener(() => { if (!$("#panel-detect").hidden) checkActivePage(); });
+loadSettings().catch(() => {
+  renderStoreSettings();
+  storeSettingsStatus.textContent = "Could not load saved store selection; using default stores.";
+});

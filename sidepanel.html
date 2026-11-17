@@ -10,13 +10,22 @@
   <main class="app">
     <header class="header">
       <div><div class="eyebrow">MULTI-STORE PRICE SEARCH</div><h1>TCG Price Checker</h1></div>
-      <span class="version">V3</span>
+      <div class="header-actions">
+        <button id="detect-button" class="secondary detect-button" type="button" aria-pressed="false">Auto-detect</button>
+        <span class="version">V3</span>
+      </div>
     </header>
+
+    <details class="store-settings">
+      <summary>Stores <span id="store-count" class="store-count"></span></summary>
+      <p class="hint">Choose which supported stores to include in searches. Adding a new retailer requires extension support.</p>
+      <div id="store-list" class="store-list"></div>
+      <div id="store-settings-status" class="store-settings-status" aria-live="polite"></div>
+    </details>
 
     <nav class="tabs" role="tablist" aria-label="Search mode">
       <button class="tab active" id="tab-single" role="tab" aria-selected="true" aria-controls="panel-single" data-panel="panel-single">Single</button>
       <button class="tab" id="tab-multiple" role="tab" aria-selected="false" aria-controls="panel-multiple" data-panel="panel-multiple">Multiple</button>
-      <button class="tab" id="tab-detect" role="tab" aria-selected="false" aria-controls="panel-detect" data-panel="panel-detect">Auto-detect</button>
     </nav>
 
     <section id="panel-single" class="tab-panel" role="tabpanel" aria-labelledby="tab-single">
@@ -53,11 +62,11 @@
       <section id="multi-results" class="results" aria-live="polite"></section>
     </section>
 
-    <section id="panel-detect" class="tab-panel" role="tabpanel" aria-labelledby="tab-detect" hidden>
+    <section id="panel-detect" class="tab-panel" role="tabpanel" aria-label="Auto-detect card" hidden>
       <div class="detect-panel">
         <h2>Card on this page</h2>
         <p>Detect a card number from the active supported retailer product page. Nothing is added to or searched on the page itself.</p>
-        <div id="detect-status" class="status" aria-live="polite">Checking the active tab…</div>
+        <div id="detect-status" class="status" aria-live="polite">Click Auto-detect to check the active tab.</div>
         <div class="detect-actions">
           <button id="detect-refresh" class="secondary" type="button">Check page again</button>
           <button id="detect-search" type="button" disabled>Compare this card</button>
@@ -65,7 +74,7 @@
       </div>
     </section>
 
-    <footer><span>Retailer-listed prices; shipping and tax excluded.</span><span>Product images are retailer-provided thumbnails.</span></footer>
+    <footer><span>Retailer-listed prices; shipping and tax excluded.</span><span>Card previews use retailer product images and are not an authoritative card database.</span></footer>
   </main>
   <script type="module" src="sidepanel.js"></script>
 </body>

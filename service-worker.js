@@ -9,7 +9,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
   const existing = await chrome.storage.local.get(["settings", "recentSearches"]);
   if (!existing.settings) await chrome.storage.local.set({
-    settings: { autoCompare: true, enabledGames: ["any"] }, recentSearches: []
+    settings: { autoCompare: true, enabledGames: ["any"], enabledStoreIds: STORES.filter(store => store.enabled).map(store => store.id) }, recentSearches: []
   });
 });
 if (chrome.sidePanel) chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
@@ -17,7 +17,12 @@ if (chrome.sidePanel) chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick
 async function searchAllStores(rawReference) {
   const cardNumber = normalizeCardNumber(rawReference);
   if (!cardNumber || cardNumber.length > 100) throw new Error("Enter a search term (maximum 100 characters).");
-  const activeStores = STORES.filter(store => store.enabled);
+  const saved = await chrome.storage.local.get({ settings: {} });
+  const enabledIds = Array.isArray(saved.settings.enabledStoreIds)
+    ? new Set(saved.settings.enabledStoreIds)
+    : new Set(STORES.filter(store => store.enabled).map(store => store.id));
+  const activeStores = STORES.filter(store => store.enabled && enabledIds.has(store.id));
+  if (!activeStores.length) throw new Error("Enable at least one supported store before searching.");
   const outcomes = await Promise.all(activeStores.map(async store => {
     try {
       if (store.platform === "shopify") {
@@ -53,11 +58,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "GET_SETTINGS") {
     Promise.all([chrome.storage.local.get({ settings: { autoCompare: true } }),
       chrome.storage.local.get({ recentSearches: [] })])
-      .then(([settings, recent]) => sendResponse({ ok: true, settings: settings.settings, recentSearches: recent.recentSearches }));
+      .then(([saved, recent]) => {
+        const current = saved.settings || {};
+        const settings = { ...current };
+        if (!Array.isArray(settings.enabledStoreIds)) settings.enabledStoreIds = STORES.filter(store => store.enabled).map(store => store.id);
+        sendResponse({ ok: true, settings, recentSearches: recent.recentSearches });
+      });
     return true;
   }
   if (message?.type === "SAVE_SETTINGS") {
-    chrome.storage.local.set({ settings: message.settings }).then(() => sendResponse({ ok: true }));
+    chrome.storage.local.get({ settings: {} }).then(saved =>
+      chrome.storage.local.set({ settings: { ...saved.settings, ...message.settings } })
+    ).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
     return true;
   }
 });
