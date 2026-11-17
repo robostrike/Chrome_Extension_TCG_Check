@@ -1,0 +1,23 @@
+#tcg-price-widget {
+  position: fixed;
+  z-index: 2147483647;
+  top: 100px;
+  right: 18px;
+  width: 340px;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 13px;
+  border: 1px solid #d9dee7;
+  border-radius: 12px;
+  background: #fff;
+  color: #20242b;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, .18);
+  font: 13px/1.45 Arial, sans-serif;
+}
+#tcg-price-widget * { box-sizing: border-box; }
+.tcg-widget-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:9px; border-bottom:1px solid #edf0f3; }
+.tcg-widget-header button { border:0; background:transparent; font-size:22px; cursor:pointer; color:#475569; }
+.tcg-widget-note { color:#64748b; font-size:11px; }
+.tcg-widget-item { padding:10px 0; border-bottom:1px solid #edf0f3; }
+.tcg-widget-item p { margin:5px 0; }
+.tcg-widget-item a { color:#2459b4; text-decoration:none; }

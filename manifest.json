@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "TCG Price Checker",
+  "version": "2.0.0",
+  "description": "Compare trading card prices across supported online stores.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://kanzengames.com/*",
+    "https://untouchables.ca/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "TCG Price Checker",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://kanzengames.com/*",
+        "https://untouchables.ca/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
