@@ -27,6 +27,14 @@ function money(value, currency) {
   }
 }
 
+function retailerLink(product) {
+  const link = el("a", "product-link", product.storeName);
+  link.href = product.productUrl;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  return link;
+}
+
 function renderResults(data) {
   resultsBox.replaceChildren();
 
@@ -71,6 +79,7 @@ function renderResults(data) {
           el("span", "availability", variant.available ? "In stock" : "Sold out")
         );
         const price = el("strong", "price", money(variant.price, product.currency));
+        if (variant.available) price.style.color = "#16834a";
         row.append(left, price);
         card.append(row);
       });
@@ -82,10 +91,12 @@ function renderResults(data) {
     const cheapest = data.variants.find(v => v.available);
     if (cheapest) {
       const note = el("div", "best-price");
-      note.append(
-        el("strong", "", "Lowest in-stock listed price"),
-        el("span", "", `${money(cheapest.price, cheapest.currency)} · ${cheapest.storeName}`)
-      );
+      const lowest = el("strong", "", "Lowest in-stock listed price");
+      const details = el("span", "");
+      const price = el("strong", "price", money(cheapest.price, cheapest.currency));
+      price.style.color = "#16834a";
+      details.append(price, document.createTextNode(" · "), retailerLink(cheapest));
+      note.append(lowest, details);
       resultsBox.prepend(note);
     }
   }
