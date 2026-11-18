@@ -25,7 +25,7 @@ function renderProducts(container, products, sortBy) {
     const image = document.createElement("img"); image.className = "product-image"; image.alt = ""; image.loading = "lazy"; image.hidden = !product.image; if (product.image) image.src = product.image; image.addEventListener("error", () => { image.hidden = true; });
     const info = el("div", "product-info"), top = el("div", "product-top"); top.append(el("div", "product-title", `${product.storeName}: ${product.title}`)); info.append(top);
     if (product.rarity) info.append(el("span", "rarity-label", product.rarity));
-    if (product.error) info.append(el("p", "hint", product.error)); else (product.variants || []).slice(0, 3).forEach(variant => { const row = el("div", "variant-row"); row.append(el("span", "availability", `${variant.title || "Default"} · ${variant.available ? "In stock" : "Sold out"}`), el("strong", variant.available ? "price in-stock-price" : "price", money(variant.price, product.currency))); info.append(row); });
+    if (product.error) info.append(el("p", "hint", product.error)); else (product.variants || []).slice(0, 3).forEach(variant => { const row = el("div", variant.available ? "variant-row" : "variant-row sold-out"); row.append(el("span", "availability", `${variant.title || "Default"} · ${variant.available ? "In stock" : "Sold out"}`), el("strong", variant.available ? "price in-stock-price" : "price sold-out-price", money(variant.price, product.currency))); info.append(row); });
     card.append(image, info); container.append(card);
   });
 }

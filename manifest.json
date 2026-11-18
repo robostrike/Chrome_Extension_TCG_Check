@@ -3,6 +3,12 @@
   "name": "TCG Price Checker",
   "version": "2.0.0",
   "description": "Compare trading card prices across supported online stores.",
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon.png"
+  },
   "permissions": ["storage", "activeTab", "sidePanel", "permissions"],
   "optional_host_permissions": ["https://*/*"],
   "host_permissions": [
@@ -27,7 +33,15 @@
     "https://deckoutgaming.ca/*"
   ],
   "background": { "service_worker": "service-worker.js", "type": "module" },
-  "action": { "default_title": "TCG Price Checker", "default_popup": "popup.html" },
+  "action": {
+    "default_title": "TCG Price Checker",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png",
+      "128": "icon.png"
+    }
+  },
   "side_panel": { "default_path": "sidepanel.html" },
   "content_scripts": [
     {

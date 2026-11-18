@@ -58,10 +58,10 @@ function renderProducts(container, products, sortBy) {
       card.append(el("p", "warning", product.error));
     } else {
       (product.variants || []).forEach(variant => {
-        const row = el("div", "variant-row");
+        const row = el("div", variant.available ? "variant-row" : "variant-row sold-out");
         const left = el("div", "variant-name");
         left.append(el("strong", "", variant.title || "Default"), el("span", "availability", variant.available ? "In stock" : "Sold out"));
-        const price = el("strong", variant.available ? "price in-stock-price" : "price", money(variant.price, product.currency));
+        const price = el("strong", variant.available ? "price in-stock-price" : "price sold-out-price", money(variant.price, product.currency));
         row.append(left, price);
         card.append(row);
       });

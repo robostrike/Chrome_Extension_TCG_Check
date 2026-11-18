@@ -70,7 +70,7 @@ A store may block or customize these endpoints. If so, it needs a custom adapter
 
 ## Debugging
 
-- Popup: right-click the popup and choose **Inspect**.
+- Side panel: right-click the side panel and choose **Inspect**.
 - Service worker: `chrome://extensions` → TCG Price Checker → **Service worker** → Inspect.
 - Content script: open the retailer page, press F12, and inspect the Console.
 - After editing files, return to `chrome://extensions` and click the extension's Reload icon.

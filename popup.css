@@ -29,6 +29,8 @@ button:disabled { opacity:.55; cursor:wait; }
 .variant-name { display:flex; flex-direction:column; gap:2px; }
 .availability { font-size:10px; color:#64748b; }
 .price { white-space:nowrap; }
+.sold-out-price { color:#8a9099; }
+.variant-row.sold-out { opacity:0.78; }
 .in-stock-price { color:#16834a; }
 .rarity-label { display:inline-block; margin-top:4px; color:#64748b; font-size:10px; }
 .rarity-heading { border-bottom:1px solid #e7e9ed; margin:12px 0 4px; padding-bottom:3px; font-size:12px; color:#475569; }
