@@ -1,5 +1,6 @@
 import { normalizeCardNumber } from "./matching.js";
 import { STORES } from "./stores.js";
+import { getTCGplayerCard, getTCGplayerCardByProductId } from "./tcgplayer.js";
 const $ = selector => document.querySelector(selector);
 const form = $("#search-form"), input = $("#card-number"), game = $("#game"), singleButton = $("#search-button"), statusBox = $("#status"), resultsBox = $("#results");
 const multiInput = $("#multi-list"), multiButton = $("#multi-search-button"), multiStatus = $("#multi-status"), multiResults = $("#multi-results"), defaultQty = $("#default-qty");
@@ -13,6 +14,33 @@ function el(tag, className = "", text = "") { const node = document.createElemen
 function money(value, currency) { if (!Number.isFinite(Number(value))) return "Price unavailable"; if (!currency || currency === "Currency not reported") return Number(value).toFixed(2); try { return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(value); } catch { return `${currency} ${Number(value).toFixed(2)}`; } }
 function lowestAvailablePrice(product) { const prices = (product.variants || []).filter(v => v.available && Number.isFinite(Number(v.price))).map(v => Number(v.price)); return prices.length ? Math.min(...prices) : Infinity; }
 function setConnection(storeId, ok, message) { connectionStates.set(storeId, { ok, message }); const row = storeList.querySelector(`[data-store-id="${CSS.escape(storeId)}"]`); if (!row) return; const status = row.querySelector(".store-connection"); status.className = `store-connection ${ok ? "connected" : "disconnected"}`; status.textContent = ok ? "Connected" : "Unavailable"; status.title = message || ""; }
+function getImageSources(products) {
+  const seen = new Set();
+  return products.flatMap(product => [product.image, ...(product.images || [])]
+    .map(image => typeof image === "string" ? image : image?.url)
+    .map(src => src?.startsWith("//") ? `https:${src}` : src)
+    .filter(src => {
+      if (!src || seen.has(src)) return false;
+      seen.add(src);
+      return true;
+    })
+    .map(src => ({ src, url: product.url, title: product.title, storeName: product.storeName })));
+}
+function setImageWithFallback(image, sources, onSourceChange = () => {}) {
+  let index = 0;
+  const loadNext = () => {
+    if (index >= sources.length) {
+      image.hidden = true;
+      return;
+    }
+    image.hidden = false;
+    const source = sources[index++];
+    onSourceChange(source);
+    image.src = source.src;
+  };
+  image.addEventListener("error", loadNext);
+  loadNext();
+}
 function renderProducts(container, products, sortBy) {
   container.replaceChildren(); const sorted = [...products];
   if (sortBy === "rarity") sorted.sort((a, b) => (a.rarity || "Unknown").localeCompare(b.rarity || "Unknown") || a.title.localeCompare(b.title));
@@ -22,24 +50,73 @@ function renderProducts(container, products, sortBy) {
   sorted.forEach(product => {
     const rarity = product.rarity || "Unknown rarity"; if (sortBy === "rarity" && rarity !== currentRarity) { container.append(el("h3", "rarity-heading", rarity)); currentRarity = rarity; }
     const card = el("a", "product-card"); card.href = product.url; card.target = "_blank"; card.rel = "noopener noreferrer"; card.setAttribute("aria-label", `Open ${product.storeName}: ${product.title} at retailer`);
-    const image = document.createElement("img"); image.className = "product-image"; image.alt = ""; image.loading = "lazy"; image.hidden = !product.image; if (product.image) image.src = product.image; image.addEventListener("error", () => { image.hidden = true; });
+    const image = document.createElement("img"); image.className = "product-image"; image.alt = ""; image.loading = "lazy"; setImageWithFallback(image, getImageSources([product]));
     const info = el("div", "product-info"), top = el("div", "product-top"); top.append(el("div", "product-title", `${product.storeName}: ${product.title}`)); info.append(top);
     if (product.rarity) info.append(el("span", "rarity-label", product.rarity));
     if (product.error) info.append(el("p", "hint", product.error)); else (product.variants || []).slice(0, 3).forEach(variant => { const row = el("div", variant.available ? "variant-row" : "variant-row sold-out"); row.append(el("span", "availability", `${variant.title || "Default"} · ${variant.available ? "In stock" : "Sold out"}`), el("strong", variant.available ? "price in-stock-price" : "price sold-out-price", money(variant.price, product.currency))); info.append(row); });
     card.append(image, info); container.append(card);
   });
 }
-function renderCardOverview(cardNumber, product) {
-  const overview = el("article", "card-overview"), image = document.createElement("img"); image.className = "overview-image"; image.alt = product.image ? `Product image for ${product.title}` : ""; image.loading = "lazy"; image.hidden = !product.image; if (product.image) image.src = product.image; image.addEventListener("error", () => { image.hidden = true; });
+function renderCardOverview(cardNumber, product, products) {
+  const tcgplayerCard = getTCGplayerCard(cardNumber);
+  const overview = el("article", "card-overview"), imageLink = el("a", "overview-image-link"), image = document.createElement("img");
+  imageLink.target = "_blank";
+  imageLink.rel = "noopener noreferrer";
+  image.className = "overview-image";
+  image.alt = `Card image for ${product.title}`;
+  image.loading = "lazy";
+  const sources = [
+    ...(tcgplayerCard ? [{ src: tcgplayerCard.image, url: tcgplayerCard.url, title: product.title, storeName: "TCGplayer" }] : []),
+    ...getImageSources(products)
+  ];
+  setImageWithFallback(image, sources, source => {
+    imageLink.href = source.url || product.url;
+    imageLink.setAttribute("aria-label", source.storeName === "TCGplayer"
+      ? "View this card on TCGplayer"
+      : `Open ${source.storeName || product.storeName}: ${source.title || product.title} retailer listing`);
+  });
+  imageLink.append(image);
   const details = el("div", "overview-details"); details.append(el("div", "overview-label", "Closest retailer match"), el("h2", "overview-title", product.title || cardNumber), el("p", "overview-meta", `${product.storeName || "Supported store"}${product.rarity ? ` · ${product.rarity}` : ""}`));
   const available = (product.variants || []).find(v => v.available); if (available) details.append(el("p", "overview-meta", `In stock from ${money(available.price, product.currency)}`));
-  details.append(el("p", "overview-note", `Search reference: ${cardNumber}. This is a retailer match, not a verified card-database result.`)); overview.append(image, details); return overview;
+  details.append(el("p", "overview-note", `Search reference: ${cardNumber}. This is a retailer match, not a verified card-database result.`));
+  const tcgplayerLink = el("a", "tcgplayer-link", tcgplayerCard ? "View on TCGplayer ↗" : "Search TCGplayer ↗");
+  tcgplayerLink.href = tcgplayerCard?.url || `https://www.tcgplayer.com/search/all/product?q=${encodeURIComponent(cardNumber)}&view=grid`;
+  tcgplayerLink.target = "_blank";
+  tcgplayerLink.rel = "noopener noreferrer";
+  details.append(tcgplayerLink);
+  overview.append(imageLink, details); return overview;
+}
+function renderTCGplayerSingles(query, tcgplayerCard) {
+  const knownCard = tcgplayerCard || getTCGplayerCard(query);
+  const url = knownCard?.url || `https://www.tcgplayer.com/search/all/product?q=${encodeURIComponent(query)}&view=grid`;
+  const block = el("article", "tcgplayer-result");
+  block.append(el("div", "overview-label", "TCGplayer singles"));
+  if (knownCard?.image) {
+    const imageLink = el("a", "overview-image-link");
+    imageLink.href = url;
+    imageLink.target = "_blank";
+    imageLink.rel = "noopener noreferrer";
+    const image = document.createElement("img");
+    image.className = "overview-image";
+    image.src = knownCard.image;
+    image.alt = `TCGplayer single for ${query}`;
+    image.loading = "lazy";
+    image.addEventListener("error", () => { imageLink.hidden = true; });
+    imageLink.append(image);
+    block.append(imageLink);
+  }
+  const link = el("a", "tcgplayer-link", knownCard ? "View TCGplayer single details ↗" : "Search TCGplayer singles ↗");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  block.append(link);
+  return block;
 }
 function renderResults(container, data) {
   container.replaceChildren();
   (data.stores || []).forEach(result => setConnection(result.storeId, result.ok, result.error || "Shopify search responded."));
   if (!data.products?.length) { container.append(el("p", "empty", "No matching retailer listings. Check store connection status or try a different name, set number, or product code.")); return; }
-  container.append(renderCardOverview(data.cardNumber, data.products[0]));
+  container.append(renderCardOverview(data.cardNumber, data.products[0], data.products));
   const cheapest = (data.variants || []).find(v => v.available);
   if (cheapest) { const best = el("a", "best-price"); best.href = cheapest.productUrl; best.target = "_blank"; best.rel = "noopener noreferrer"; best.setAttribute("aria-label", `Open ${cheapest.storeName} listing with the lowest in-stock price, ${money(cheapest.price, cheapest.currency)}`); best.append(el("strong", "best-price-title", "Lowest in-stock")); const details = el("span", "best-price-details"); details.append(el("strong", "in-stock-price", money(cheapest.price, cheapest.currency)), el("span", "best-price-store", `at ${cheapest.storeName} · View listing ↗`)); best.append(details); container.append(best); }
   const sortRow = el("div", "sort-row"), sortLabel = el("label", "", "Sort/group:"), sortSelect = el("select", "sort-select"); sortSelect.setAttribute("aria-label", "Sort and group listings");
@@ -47,11 +124,41 @@ function renderResults(container, data) {
   sortRow.append(sortLabel, sortSelect); container.append(sortRow); const listings = el("div", "listing-results"); container.append(listings); renderProducts(listings, data.products, sortSelect.value); sortSelect.addEventListener("change", () => renderProducts(listings, data.products, sortSelect.value));
 }
 async function searchCard(raw, status, container) {
-  const term = String(raw || "").trim(); if (!term) throw new Error("Enter a card name, number, or product code.");
+  let term = String(raw || "").trim(); if (!term) throw new Error("Enter a card name, number, or product code.");
+  if (term.startsWith("TCGPLAYER:")) {
+    const parts = term.slice("TCGPLAYER:".length).split("|");
+    const detectedTitle = parts.slice(1).join("|").trim();
+    if (detectedTitle) term = detectedTitle;
+  }
+  if (term.startsWith("TCGPLAYER:")) {
+    const productId = term.slice("TCGPLAYER:".length);
+    const mapped = getTCGplayerCardByProductId(productId);
+    const url = `https://www.tcgplayer.com/product/${productId}?Language=English`;
+    status.textContent = `TCGplayer product ${productId}`;
+    container.replaceChildren();
+    container.append(renderTCGplayerSingles(mapped?.cardNumber || productId, {
+      url,
+      image: mapped?.image || `https://product-images.tcgplayer.com/fit-in/400x400/${productId}.jpg`
+    }));
+    return { cardNumber: mapped?.cardNumber || productId, products: [], variants: [] };
+  }
+  if (/^\d+$/.test(term)) {
+    const mapped = getTCGplayerCardByProductId(term);
+    const url = `https://www.tcgplayer.com/product/${term}?Language=English`;
+    status.textContent = `TCGplayer product ${term}`;
+    container.replaceChildren();
+    container.append(renderTCGplayerSingles(mapped?.cardNumber || term, {
+      url,
+      image: mapped?.image || `https://product-images.tcgplayer.com/fit-in/400x400/${term}.jpg`
+    }));
+    return { cardNumber: mapped?.cardNumber || term, products: [], variants: [] };
+  }
   if (!settings.enabledStoreIds.length) throw new Error("Enable at least one store in the Stores list before searching.");
   status.textContent = `Searching ${settings.enabledStoreIds.length} enabled store(s) for ${term}…`;
   const response = await chrome.runtime.sendMessage({ type: "SEARCH_CARD", cardNumber: term, game: game.value }); if (!response?.ok) throw new Error(response?.error || "Search failed.");
-  status.textContent = `Results for ${response.data.cardNumber}`; renderResults(container, response.data); return response.data;
+  status.textContent = `Results for ${response.data.cardNumber}`;
+  renderResults(container, response.data);
+  return response.data;
 }
 form.addEventListener("submit", async event => { event.preventDefault(); singleButton.disabled = true; singleButton.textContent = "Searching…"; resultsBox.replaceChildren(); try { await searchCard(input.value, statusBox, resultsBox); } catch (error) { statusBox.textContent = `Error: ${error.message}`; } finally { singleButton.disabled = false; singleButton.textContent = "Search"; } });
 function parseReferences(text, fallback) { return text.split(/\n|,/).map(line => line.trim()).filter(Boolean).map(line => { const quantity = line.match(/\s+(?:x|\*)\s*(\d+)\s*$/i); const reference = quantity ? line.slice(0, quantity.index).trim() : line; return { reference, quantity: Math.max(1, Number(quantity?.[1] || fallback) || 1) }; }).filter(entry => entry.reference); }
@@ -108,11 +215,38 @@ async function removeStore(store) {
 async function checkActivePage(andSearch = false) {
   detectStatus.textContent = "Checking the active tab…";
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); if (!tab?.id) throw new Error("No active browser tab was found."); let card = "";
-    try { const response = await chrome.tabs.sendMessage(tab.id, { type: "GET_DETECTED_CARD" }); if (response?.ok) card = response.cardNumber || ""; } catch { /* No content script on this tab. */ }
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); if (!tab?.id) throw new Error("No active browser tab was found."); let card = "", tcgplayerProductId = "", detectedTitle = "";
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, { type: "GET_DETECTED_CARD" });
+      if (response?.ok) {
+        card = response.cardNumber || "";
+        tcgplayerProductId = response.tcgplayerProductId || "";
+        detectedTitle = response.title || "";
+      }
+    } catch { /* No content script on this tab. */ }
+    if (!card) {
+      const tcgplayerProduct = tab.url?.match(/tcgplayer\.com\/product\/(\d+)/i);
+      if (tcgplayerProduct) tcgplayerProductId = tcgplayerProduct[1];
+    }
+    if (tcgplayerProductId) {
+      const mapped = getTCGplayerCardByProductId(tcgplayerProductId);
+      if (mapped?.cardNumber) card = mapped.cardNumber;
+      else if (!card) card = detectedTitle
+        ? `TCGPLAYER:${tcgplayerProductId}|${detectedTitle}`
+        : `TCGPLAYER:${tcgplayerProductId}`;
+    }
     if (!card) { const match = `${tab.title || ""} ${tab.url || ""}`.match(/\b[A-Z]{1,5}\d{1,3}-\d{2,4}\b/i); if (match) card = match[0].toUpperCase(); }
     if (!card) { detectStatus.textContent = "No card number detected. Open a supported product page or enter a card manually."; return; }
-    detectedCard = normalizeCardNumber(card); detectStatus.textContent = `Detected ${detectedCard}${andSearch ? " — searching stores now…" : "."}`;
+    detectedCard = card.startsWith("TCGPLAYER:")
+      ? card
+      : normalizeCardNumber(card);
+    const detectedLabel = card.startsWith("TCGPLAYER:")
+      ? (() => {
+          const [productId, title] = card.slice("TCGPLAYER:".length).split("|");
+          return title ? `TCGplayer ${title} (product ${productId})` : `TCGplayer product ${productId}`;
+        })()
+      : detectedCard;
+    detectStatus.textContent = `Detected ${detectedLabel}${andSearch ? " — searching now…" : "."}`;
     if (andSearch) { activatePanel("panel-single"); input.value = detectedCard; form.requestSubmit(); }
   } catch (error) { detectStatus.textContent = error.message; }
 }

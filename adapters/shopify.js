@@ -1,12 +1,7 @@
+import { matchesStoreCard } from "../matching.js";
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function hasExactCardNumber(text, cardNumber) {
-  if (!text) return false;
-  const escaped = escapeRegExp(cardNumber);
-  const pattern = new RegExp(`(^|[^A-Z0-9])${escaped}($|[^A-Z0-9])`, "i");
-  return pattern.test(text);
 }
 
 function extractRarity(detail) {
@@ -42,27 +37,62 @@ async function getStoreCurrency(origin) {
   } catch { return null; }
 }
 
-export async function searchShopifyStore(store, cardNumber) {
-  const searchUrl = new URL("/search/suggest.json", store.origin);
-  searchUrl.searchParams.set("q", cardNumber);
-  searchUrl.searchParams.set("resources[type]", "product");
-  searchUrl.searchParams.set("resources[limit]", "10");
-  searchUrl.searchParams.set("resources[options][unavailable_products]", "show");
-  const data = await fetchJson(searchUrl.toString());
-  const candidates = data?.resources?.results?.products || [];
+function getImageUrls(product, detail) {
+  const values = [detail.featured_image, ...(detail.images || []), product.image];
+  return [...new Set(values
+    .map(value => typeof value === "string" ? value : value?.url)
+    .filter(Boolean)
+    .map(url => url.startsWith("//") ? `https:${url}` : url))];
+}
+
+export async function searchShopifyStore(store, cardNumber, game = "any") {
+  const searchTerms = [cardNumber];
+  if (game === "magic") {
+    const reference = cardNumber.match(/^([A-Z0-9]{2,6})[-\s]?(\d{1,4}[A-Z]?)$/i);
+    if (reference) searchTerms.push(reference[2]);
+  }
+  if (game === "pokemon") {
+    const reference = cardNumber.match(/^0*(\d{1,3})\s*\/\s*0*(\d{1,3})$/i);
+    if (reference) searchTerms.push(`${Number(reference[1])}/${Number(reference[2])}`);
+  }
+  if (game === "magic" || game === "pokemon") {
+    const words = cardNumber.trim().split(/\s+/);
+    for (let length = words.length - 1; length >= 2; length--) {
+      searchTerms.push(words.slice(0, length).join(" "));
+    }
+  }
+  const candidateMap = new Map();
+  for (const searchTerm of new Set(searchTerms)) {
+    const searchUrl = new URL("/search/suggest.json", store.origin);
+    searchUrl.searchParams.set("q", searchTerm);
+    searchUrl.searchParams.set("resources[type]", "product");
+    searchUrl.searchParams.set("resources[limit]", "10");
+    searchUrl.searchParams.set("resources[options][unavailable_products]", "show");
+    const data = await fetchJson(searchUrl.toString());
+    const candidates = data?.resources?.results?.products || [];
+    candidates
+      .filter(product => matchesStoreCard(product, cardNumber, game))
+      .forEach(product => candidateMap.set(product.handle || product.id, product));
+    if (candidateMap.size) break;
+  }
+  const candidates = [...candidateMap.values()];
   const currency = await getStoreCurrency(store.origin);
   const details = await Promise.all(candidates.map(async product => {
     try {
       const detailUrl = new URL(`/products/${encodeURIComponent(product.handle)}.js`, store.origin);
       const detail = await fetchJson(detailUrl.toString());
-      const productText = [detail.title, detail.handle, detail.description, ...(detail.tags || [])].filter(Boolean).join(" ");
-      if (!hasExactCardNumber(productText, cardNumber)) return null;
+      if (!matchesStoreCard({
+        ...detail,
+        body: detail.description
+      }, cardNumber, game)) return null;
+      const images = getImageUrls(product, detail);
       return {
         storeId: store.id,
         storeName: store.name,
         title: detail.title,
         url: new URL(`/products/${encodeURIComponent(detail.handle)}`, store.origin).toString(),
-        image: detail.featured_image || detail.images?.[0] || null,
+        image: images[0] || null,
+        images,
         currency,
         cardNumber,
         rarity: extractRarity(detail),
@@ -76,11 +106,15 @@ export async function searchShopifyStore(store, cardNumber) {
         }))
       };
     } catch (error) {
+      const rawImage = typeof product.image === "string" ? product.image : product.image?.url || null;
+      const image = rawImage?.startsWith("//") ? `https:${rawImage}` : rawImage;
       return {
         storeId: store.id,
         storeName: store.name,
         title: product.title,
         url: product.url ? new URL(product.url, store.origin).toString() : store.origin,
+        image,
+        images: image ? [image] : [],
         currency,
         cardNumber,
         rarity: null,

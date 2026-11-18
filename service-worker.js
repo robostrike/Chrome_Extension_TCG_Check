@@ -39,7 +39,7 @@ async function probeStore(store) {
     return { ok: false, error: error.name === "TimeoutError" ? "Connection timed out." : (error.message || "Connection failed.") };
   }
 }
-async function searchAllStores(rawReference) {
+async function searchAllStores(rawReference, game = "any") {
   const cardNumber = normalizeCardNumber(rawReference);
   if (!cardNumber || cardNumber.length > 100) throw new Error("Enter a search term (maximum 100 characters).");
   const saved = await chrome.storage.local.get({ settings: {} });
@@ -54,7 +54,7 @@ async function searchAllStores(rawReference) {
       const permission = await chrome.permissions.contains({ origins: [`${new URL(store.origin).origin}/*`] });
       if (!permission) return { storeId: store.id, storeName: store.name, ok: false, products: [], error: "Host permission has not been granted." };
       if (store.platform === "shopify") {
-        const products = await searchShopifyStore(store, cardNumber);
+        const products = await searchShopifyStore(store, cardNumber, game);
         return { storeId: store.id, storeName: store.name, ok: true, products };
       }
       return { storeId: store.id, storeName: store.name, ok: false, products: [], error: "This store adapter is not supported." };
@@ -77,7 +77,7 @@ async function searchAllStores(rawReference) {
 }
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "SEARCH_CARD") {
-    searchAllStores(message.cardNumber).then(data => sendResponse({ ok: true, data })).catch(error => sendResponse({ ok: false, error: error.message }));
+    searchAllStores(message.cardNumber, message.game).then(data => sendResponse({ ok: true, data })).catch(error => sendResponse({ ok: false, error: error.message }));
     return true;
   }
   if (message?.type === "GET_SETTINGS") {

@@ -12,6 +12,8 @@
   "permissions": ["storage", "activeTab", "sidePanel", "permissions"],
   "optional_host_permissions": ["https://*/*"],
   "host_permissions": [
+    "https://www.tcgplayer.com/*",
+    "https://product-images.tcgplayer.com/*",
     "https://kanzengames.com/*",
     "https://untouchables.ca/*",
     "https://cardifyhobby.com/*",
@@ -20,6 +22,7 @@
     "https://kadoone.ca/*",
     "https://rotostcg.ca/*",
     "https://www.401games.com/*",
+    "https://store.401games.ca/*",
     "https://mantatrading.com/*",
     "https://www.hobbiesville.com/*",
     "https://emmettstoystop.com/*",
@@ -46,6 +49,8 @@
   "content_scripts": [
     {
       "matches": [
+        "https://www.tcgplayer.com/*",
+        "https://store.401games.ca/*",
         "https://kanzengames.com/*", "https://untouchables.ca/*", "https://cardifyhobby.com/*",
         "https://elitecardstoronto.com/*", "https://bananagames.ca/*", "https://kadoone.ca/*",
         "https://rotostcg.ca/*", "https://www.401games.com/*", "https://mantatrading.com/*",
