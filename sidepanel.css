@@ -26,7 +26,7 @@ button:disabled { opacity: .55; cursor: wait; }
 .store-count { color: #64748b; font-size: 11px; font-weight: 400; margin-left: 4px; }
 .store-settings .hint { margin: 7px 0; }
 .store-list { display: grid; gap: 4px; }
-.store-option { display: grid; grid-template-columns: 16px minmax(90px, 1fr) minmax(90px, auto) auto auto; align-items: center; gap: 6px; margin: 0; padding: 5px 2px; border-top: 1px solid #f0f1f3; }
+.store-option { display: grid; grid-template-columns: 16px minmax(70px, 1fr) minmax(80px, auto) auto auto auto; align-items: center; gap: 6px; margin: 0; padding: 5px 2px; border-top: 1px solid #f0f1f3; }
 .store-option input { margin: 0; }
 .store-option-name { color: #273449; font-size: 11px; }
 .store-option-host { color: #64748b; font-size: 9px; font-weight: 400; }
@@ -34,8 +34,8 @@ button:disabled { opacity: .55; cursor: wait; }
 .store-connection.connected { color: #16834a; }
 .store-connection.disconnected { color: #c62828; }
 .store-connection.unchecked { color: #64748b; }
-.store-test, .store-remove { font-size: 9px; padding: 4px 6px; }
-.store-test { background: #e2e8f0; color: #0f172a; }
+.store-test, .store-visit, .store-remove { font-size: 9px; padding: 4px 6px; }
+.store-test, .store-visit { background: #e2e8f0; color: #0f172a; }
 .store-remove { background: #fee2e2; color: #991b1b; }
 .add-store-form { display: grid; gap: 3px; margin-top: 10px; padding-top: 9px; border-top: 1px solid #e7e9ed; }
 .add-store-form strong { font-size: 11px; margin-bottom: 4px; }
@@ -90,4 +90,4 @@ textarea { min-height: 112px; resize: vertical; margin-bottom: 7px; }
 .detect-panel p { color: #64748b; font-size: 12px; margin: 4px 0 10px; }
 footer { color: #7b8491; font-size: 10px; display: flex; flex-direction: column; gap: 2px; padding: 3px 2px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-@media (max-width: 480px) { .store-option { grid-template-columns: 16px 1fr auto auto; } .store-option-host { display: none; } }
+@media (max-width: 480px) { .store-option { grid-template-columns: 16px minmax(0, 1fr) auto auto auto; } .store-option-host { display: none; } }

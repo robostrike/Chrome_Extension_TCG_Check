@@ -177,13 +177,21 @@ function renderStoreSettings() {
     const name = el("span", "store-option-name", store.name), host = el("span", "store-option-host", new URL(store.origin).hostname);
     const state = connectionStates.get(store.id); const status = el("span", `store-connection ${state ? state.ok ? "connected" : "disconnected" : "unchecked"}`, state ? state.ok ? "Connected" : "Unavailable" : "Not checked"); if (state) status.title = state.message;
     const test = el("button", "store-test", "Check"); test.type = "button"; test.addEventListener("click", () => testStore(store, test));
-    row.append(checkbox, name, host, status, test);
+    const visit = el("button", "store-visit", "Visit"); visit.type = "button"; visit.setAttribute("aria-label", `Open ${store.name} website in a new tab`); visit.addEventListener("click", () => visitStore(store));
+    row.append(checkbox, name, host, status, test, visit);
     if (store.custom) { const remove = el("button", "store-remove", "Remove"); remove.type = "button"; remove.addEventListener("click", () => removeStore(store)); row.append(remove); }
     storeList.append(row);
   }); updateStoreCount();
 }
 function updateStoreCount() { storeCount.textContent = `${settings.enabledStoreIds.length} of ${stores.length} enabled`; }
 async function saveSettings(patch) { storeSettingsStatus.textContent = "Saving…"; const response = await chrome.runtime.sendMessage({ type: "SAVE_SETTINGS", settings: patch }); storeSettingsStatus.textContent = response?.ok ? "Saved." : "Could not save settings."; }
+async function visitStore(store) {
+  try {
+    await chrome.tabs.create({ url: store.origin });
+  } catch (error) {
+    storeSettingsStatus.textContent = `Could not open ${store.name}: ${error.message}`;
+  }
+}
 async function testStore(store, button) { button.disabled = true; button.textContent = "Checking…"; const result = await chrome.runtime.sendMessage({ type: "TEST_STORE", store }); setConnection(store.id, Boolean(result?.ok), result?.error); button.disabled = false; button.textContent = "Check"; }
 async function loadStores() {
   const [settingsResponse, storesResponse] = await Promise.all([chrome.runtime.sendMessage({ type: "GET_SETTINGS" }), chrome.runtime.sendMessage({ type: "GET_STORES" })]);
